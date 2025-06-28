@@ -46,7 +46,7 @@ module "dokku_app" {
 - `dokku_domain`
 - `dokku_app`
 - `null_resource` (for build dir setup)
-- `cloudflare_zone` (data)
+  - `cloudflare_zone` (data)
 - `cloudflare_ip_ranges` (data)
 
 ## Notes
