@@ -1,8 +1,8 @@
 terraform {
   required_providers {
     dokku = {
-      source  = "aliksend/dokku"
-      version = "1.0.24"
+      source  = "registry.terraform.io/DimmKirr/dokku" # Until provider is published to opentofu registry
+      version = ">= 1.2.0"
     }
 
     cloudflare = {
