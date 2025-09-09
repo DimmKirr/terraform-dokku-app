@@ -11,7 +11,8 @@ resource "cloudflare_dns_record" "app_record" {
 }
 
 resource "cloudflare_page_rule" "http_to_https" {
-  for_each = var.manage_cloudflare ? toset(local.domains) : toset([])
+  for_each = var.manage_cloudflare && var.manage_https_redirect ? toset(local.domains) : toset([])
+
   zone_id  = data.cloudflare_zone.this.zone_id
   target   = "http://${each.value}/*"
   actions = {
