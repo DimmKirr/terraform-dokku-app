@@ -60,6 +60,13 @@ variable "manage_cloudflare" {
   default     = true
 }
 
+
+variable "manage_https_redirect" {
+  description = "Whether to manage Cloudflare http to https redurect"
+  type        = bool
+  default     = true
+}
+
 variable "data_dir" {
   description = "Storage directory on the host"
   type        = string
