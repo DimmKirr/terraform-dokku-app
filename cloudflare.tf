@@ -36,3 +36,40 @@ resource "cloudflare_dns_record" "dns_records" {
   ttl      = each.value.ttl
   type     = each.value.type
 }
+
+# Generate private key for Origin CA certificate
+resource "tls_private_key" "origin_ca" {
+  count     = var.manage_cloudflare && var.manage_origin_certificate ? 1 : 0
+  algorithm = "RSA"
+  rsa_bits  = 2048
+}
+
+# Create certificate signing request
+resource "tls_cert_request" "origin_ca" {
+  count           = var.manage_cloudflare && var.manage_origin_certificate ? 1 : 0
+  private_key_pem = tls_private_key.origin_ca[0].private_key_pem
+
+  subject {
+    common_name  = local.domains[0]
+    organization = var.name
+  }
+
+  dns_names = local.domains
+}
+
+# Cloudflare Origin CA Certificate for Dokku app
+resource "cloudflare_origin_ca_certificate" "app" {
+  count              = var.manage_cloudflare && var.manage_origin_certificate ? 1 : 0
+  csr                = tls_cert_request.origin_ca[0].cert_request_pem
+  hostnames          = local.domains
+  request_type       = "origin-rsa"
+  requested_validity = var.origin_certificate_validity_days
+}
+
+# Set SSL mode to Full (strict) when using Origin CA certificate
+resource "cloudflare_zone_setting" "ssl_mode" {
+  count      = var.manage_cloudflare && var.manage_origin_certificate ? 1 : 0
+  zone_id    = data.cloudflare_zone.this.zone_id
+  setting_id = "ssl"
+  value      = "strict"
+}
