@@ -57,3 +57,36 @@ resource "null_resource" "config_set" {
     always_run = timestamp()
   }
 }
+
+# Upload Cloudflare Origin CA certificate to Dokku
+resource "null_resource" "dokku_cert" {
+  count = var.manage_origin_certificate ? 1 : 0
+
+  triggers = {
+    cert_id = cloudflare_origin_ca_certificate.app[0].id
+  }
+
+  provisioner "remote-exec" {
+    connection {
+      host        = var.node_ip_address
+      user        = "root"
+      private_key = var.ssh_private_key
+    }
+
+    inline = [
+      "set -e",
+      "mkdir -p /tmp/dokku-certs-${dokku_app.this.app_name}",
+      "cat > /tmp/dokku-certs-${dokku_app.this.app_name}/server.crt <<'CERT_EOF'\n${cloudflare_origin_ca_certificate.app[0].certificate}\nCERT_EOF",
+      "cat > /tmp/dokku-certs-${dokku_app.this.app_name}/server.key <<'KEY_EOF'\n${tls_private_key.origin_ca[0].private_key_pem}\nKEY_EOF",
+      "cd /tmp/dokku-certs-${dokku_app.this.app_name} && tar cf certificate.tar server.crt server.key",
+      "dokku certs:add ${dokku_app.this.app_name} < /tmp/dokku-certs-${dokku_app.this.app_name}/certificate.tar",
+      "rm -rf /tmp/dokku-certs-${dokku_app.this.app_name}"
+    ]
+  }
+
+  depends_on = [
+    dokku_app.this,
+    cloudflare_origin_ca_certificate.app,
+    tls_private_key.origin_ca
+  ]
+}

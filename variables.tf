@@ -116,3 +116,15 @@ variable "enable_checks" {
   type = bool
   default = true
 }
+
+variable "manage_origin_certificate" {
+  description = "Whether to create and manage a Cloudflare Origin CA certificate for the application"
+  type        = bool
+  default     = false
+}
+
+variable "origin_certificate_validity_days" {
+  description = "Validity period for the Cloudflare Origin CA certificate in days (7, 30, 90, 365, 730, 1825, 5475)"
+  type        = number
+  default     = 5475
+}
