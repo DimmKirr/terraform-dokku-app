@@ -27,7 +27,7 @@ resource "null_resource" "set_build_dir" {
   }
   provisioner "remote-exec" {
     connection {
-      host        = var.node_ip_address
+      host        = var.host
       user        = "root"
       private_key = var.ssh_private_key
       timeout     = "2m"
@@ -43,7 +43,7 @@ resource "null_resource" "config_set" {
   for_each = var.environment
   provisioner "remote-exec" {
     connection {
-      host        = var.node_ip_address
+      host        = var.host
       user        = "root"
       private_key = var.ssh_private_key
     }
@@ -68,7 +68,8 @@ resource "null_resource" "dokku_cert" {
 
   provisioner "remote-exec" {
     connection {
-      host        = var.node_ip_address
+      host        = var.host
+      # host        = var.node_ip_address
       user        = "root"
       private_key = var.ssh_private_key
     }
