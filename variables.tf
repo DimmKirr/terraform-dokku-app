@@ -8,10 +8,10 @@ variable "root_domain" {
   type        = string
 }
 
-variable "enable_app_subdomain" {
+variable "manage_subdomain" {
   description = "Whether to enable a subdomain for the application"
   type        = bool
-  default     = false
+  default     = true
 }
 
 

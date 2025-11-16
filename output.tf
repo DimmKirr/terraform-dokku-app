@@ -1,5 +1,5 @@
 output "fqdn" {
-  value = cloudflare_dns_record.app_record[var.domains[0]].name
+  value = "${var.name}.${var.root_domain}" # likely insufficient for cases with app domain enabled, but it's OK for now.
 }
 
 output "origin_certificate_id" {
