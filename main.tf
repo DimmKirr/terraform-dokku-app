@@ -13,8 +13,7 @@ resource "dokku_app" "this" {
   }
 
   config = merge({ APP_NAME = var.name }, var.environment)
-  storage = merge(local.storage, var.extra_storage)
-
+  storage = local.storage
 
   domains = local.domains
 

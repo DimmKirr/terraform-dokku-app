@@ -50,6 +50,12 @@ variable "container_port" {
   default     = 5000
 }
 
+variable "storage_enabled" {
+  description = "Enable persistent storage for the application"
+  type        = bool
+  default     = false
+}
+
 variable "data_dir" {
   description = "Storage directory on the host (used for default storage mount when storage variable is not set)"
   type        = string
@@ -64,12 +70,6 @@ variable "storage" {
 
 variable "docker_options" {
   description = "Additional docker options ( # https://dokku.com/docs/advanced-usage/docker-options/)"
-  type        = map(any)
-  default     = {}
-}
-
-variable "extra_storage" {
-  description = "Extra storage mounts to add to the default or custom storage configuration"
   type        = map(any)
   default     = {}
 }
