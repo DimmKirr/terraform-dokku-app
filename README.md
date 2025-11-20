@@ -12,38 +12,79 @@ This module simplifies the deployment and configuration of applications on a Dok
 - Configures application environment variables
 - Sets up build directory configuration
 - Manages DNS records via Cloudflare integration
+- Supports both traditional IP-based (A records) and Cloudflare Tunnel (CNAME records) routing
 - Creates HTTP to HTTPS redirect rules
 - Supports multiple domains for a single application
 
 ## Usage
 
+### Basic Example
+
 ```hcl
 module "dokku_app" {
-  source          = "github.com/DimmKirr/terraform-dokku-app"
+  source = "github.com/DimmKirr/terraform-dokku-app"
+
+  # Required variables
   name            = "myapp"
   root_domain     = "example.com"
-  hostname        = "dokku.example.com"
+  host            = "dokku.example.com"
   ssh_private_key = file("~/.ssh/id_rsa")
   node_ip_address = "203.0.113.1"
-  
+}
+```
+
+### With Additional Configuration
+
+```hcl
+module "dokku_app" {
+  source = "github.com/DimmKirr/terraform-dokku-app"
+
+  # Required variables
+  name            = "myapp"
+  root_domain     = "example.com"
+  host            = "dokku.example.com"
+  ssh_private_key = file("~/.ssh/id_rsa")
+  node_ip_address = "203.0.113.1"
+
+  # Optional configuration
   environment = {
     NODE_ENV = "production"
     PORT     = "5000"
   }
-  
-  extra_domains = [
+
+  domains = [
     "app.example.org",
     "myapp.example.net"
   ]
 }
 ```
 
+### Tunnel Mode (Cloudflare Tunnel)
+
+```hcl
+module "dokku_app" {
+  source                    = "github.com/DimmKirr/terraform-dokku-app"
+  name                      = "myapp"
+  root_domain               = "example.com"
+  host                      = "dokku.example.com"
+  ssh_private_key           = file("~/.ssh/id_rsa")
+  cloudflare_tunnel_enabled = true
+  cloudflare_tunnel_id      = "abc123-def456-ghi789"
+
+  environment = {
+    NODE_ENV = "production"
+  }
+}
+```
+
+**Note:** The Cloudflare Tunnel must be created and configured separately. This module only handles the DNS configuration.
+
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_cloudflare"></a> [cloudflare](#requirement\_cloudflare) | 5.6.0 |
+| <a name="requirement_cloudflare"></a> [cloudflare](#requirement\_cloudflare) | ~>5 |
 | <a name="requirement_dokku"></a> [dokku](#requirement\_dokku) | >= 1.2.0 |
 
 ## Providers
@@ -53,6 +94,7 @@ module "dokku_app" {
 | <a name="provider_cloudflare"></a> [cloudflare](#provider\_cloudflare) | 5.6.0 |
 | <a name="provider_dokku"></a> [dokku](#provider\_dokku) | 1.2.0 |
 | <a name="provider_null"></a> [null](#provider\_null) | 3.2.4 |
+| <a name="provider_tls"></a> [tls](#provider\_tls) | 4.1.0 |
 
 ## Modules
 
@@ -62,33 +104,57 @@ No modules.
 
 | Name | Type |
 |------|------|
-| [cloudflare_dns_record.this](https://registry.terraform.io/providers/cloudflare/cloudflare/5.6.0/docs/resources/dns_record) | resource |
-| [cloudflare_page_rule.http_to_https](https://registry.terraform.io/providers/cloudflare/cloudflare/5.6.0/docs/resources/page_rule) | resource |
+| [cloudflare_dns_record.app_record](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/dns_record) | resource |
+| [cloudflare_dns_record.dns_records](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/dns_record) | resource |
+| [cloudflare_origin_ca_certificate.app](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/origin_ca_certificate) | resource |
+| [cloudflare_page_rule.http_to_https](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/page_rule) | resource |
+| [cloudflare_zone_setting.ssl_mode](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/zone_setting) | resource |
 | dokku_app.this | resource |
 | [null_resource.config_set](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
+| [null_resource.dokku_cert](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
 | [null_resource.set_build_dir](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
-| [cloudflare_ip_ranges.this](https://registry.terraform.io/providers/cloudflare/cloudflare/5.6.0/docs/data-sources/ip_ranges) | data source |
-| [cloudflare_zone.this](https://registry.terraform.io/providers/cloudflare/cloudflare/5.6.0/docs/data-sources/zone) | data source |
+| [tls_cert_request.origin_ca](https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/cert_request) | resource |
+| [tls_private_key.origin_ca](https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key) | resource |
+| [cloudflare_ip_ranges.this](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/data-sources/ip_ranges) | data source |
+| [cloudflare_zone.this](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/data-sources/zone) | data source |
 
 ## Inputs
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
+| <a name="input_cloudflare_dns_record_proxied"></a> [cloudflare\_dns\_record\_proxied](#input\_cloudflare\_dns\_record\_proxied) | Whether the Cloudflare DNS record should be proxied | `bool` | `true` | no |
+| <a name="input_cloudflare_dns_record_ttl"></a> [cloudflare\_dns\_record\_ttl](#input\_cloudflare\_dns\_record\_ttl) | TTL for the Cloudflare DNS record (only applies when dns\_record\_proxied is false) | `number` | `1` | no |
+| <a name="input_cloudflare_dns_records"></a> [cloudflare\_dns\_records](#input\_cloudflare\_dns\_records) | Additional DNS records for the app | <pre>list(object({<br/>    type     = string<br/>    name     = string<br/>    content  = string<br/>    priority = number<br/>    ttl      = number<br/>    proxied  = bool<br/>  }))</pre> | `[]` | no |
+| <a name="input_cloudflare_manage_https_redirect"></a> [cloudflare\_manage\_https\_redirect](#input\_cloudflare\_manage\_https\_redirect) | Whether to manage Cloudflare http to https redirect | `bool` | `true` | no |
+| <a name="input_cloudflare_origin_certificate_enabled"></a> [cloudflare\_origin\_certificate\_enabled](#input\_cloudflare\_origin\_certificate\_enabled) | Whether to create and manage a Cloudflare Origin CA certificate for the application | `bool` | `false` | no |
+| <a name="input_cloudflare_origin_certificate_validity_days"></a> [cloudflare\_origin\_certificate\_validity\_days](#input\_cloudflare\_origin\_certificate\_validity\_days) | Validity period for the Cloudflare Origin CA certificate in days (7, 30, 90, 365, 730, 1825, 5475) | `number` | `5475` | no |
+| <a name="input_cloudflare_tunnel_enabled"></a> [cloudflare\_tunnel\_enabled](#input\_cloudflare\_tunnel\_enabled) | Whether to use Cloudflare Tunnel for DNS routing (CNAME) instead of direct IP (A record) | `bool` | `false` | no |
+| <a name="input_cloudflare_tunnel_id"></a> [cloudflare\_tunnel\_id](#input\_cloudflare\_tunnel\_id) | Cloudflare Tunnel UUID (required when cloudflare\_tunnel\_enabled is true) | `string` | `""` | no |
 | <a name="input_container_port"></a> [container\_port](#input\_container\_port) | Container port that the application listens on | `number` | `5000` | no |
-| <a name="input_dns_record_proxied"></a> [dns\_record\_proxied](#input\_dns\_record\_proxied) | Whether the Cloudflare DNS record should be proxied | `bool` | `true` | no |
-| <a name="input_dns_record_ttl"></a> [dns\_record\_ttl](#input\_dns\_record\_ttl) | TTL for the Cloudflare DNS record (only applies when dns\_record\_proxied is false) | `number` | `1` | no |
+| <a name="input_data_dir"></a> [data\_dir](#input\_data\_dir) | Storage directory on the host | `string` | `"/data"` | no |
+| <a name="input_docker_options"></a> [docker\_options](#input\_docker\_options) | Additional docker options ( # https://dokku.com/docs/advanced-usage/docker-options/) | `map(any)` | `{}` | no |
+| <a name="input_domains"></a> [domains](#input\_domains) | The list of domains for the app. | `list(string)` | `[]` | no |
 | <a name="input_environment"></a> [environment](#input\_environment) | Map of environment variables to set for the Dokku application | `map(string)` | `{}` | no |
-| <a name="input_extra_domains"></a> [extra\_domains](#input\_extra\_domains) | List of additional domains to be configured for the application | `list(string)` | `[]` | no |
-| <a name="input_hostname"></a> [hostname](#input\_hostname) | Hostname of the Dokku server for SSH connections | `string` | n/a | yes |
+| <a name="input_extra_storage"></a> [extra\_storage](#input\_extra\_storage) | Extra storage mounts | `map(any)` | `{}` | no |
+| <a name="input_health_checks_enabled"></a> [health\_checks\_enabled](#input\_health\_checks\_enabled) | Enable health checks (Defined in app.json) | `bool` | `true` | no |
+| <a name="input_host"></a> [host](#input\_host) | Hostname of the Dokku server for SSH connections | `string` | n/a | yes |
 | <a name="input_manage_cloudflare"></a> [manage\_cloudflare](#input\_manage\_cloudflare) | Whether to manage Cloudflare resources (DNS records and page rules) | `bool` | `true` | no |
+| <a name="input_manage_subdomain"></a> [manage\_subdomain](#input\_manage\_subdomain) | Whether to enable a subdomain for the application | `bool` | `true` | no |
 | <a name="input_name"></a> [name](#input\_name) | Name of the Dokku application to be deployed | `string` | n/a | yes |
-| <a name="input_node_ip_address"></a> [node\_ip\_address](#input\_node\_ip\_address) | The IP address of the dokku node for DNS record creation | `string` | n/a | yes |
+| <a name="input_node_ip_address"></a> [node\_ip\_address](#input\_node\_ip\_address) | The IP address of the dokku node for DNS record creation (required when cloudflare\_tunnel\_enabled is false) | `string` | `""` | no |
+| <a name="input_proxy_enabled"></a> [proxy\_enabled](#input\_proxy\_enabled) | Enable Dokku proxy for the application | `bool` | `true` | no |
 | <a name="input_root_domain"></a> [root\_domain](#input\_root\_domain) | Root domain for the application (used for DNS records and app domains) | `string` | n/a | yes |
 | <a name="input_ssh_private_key"></a> [ssh\_private\_key](#input\_ssh\_private\_key) | SSH private key contents for dokku user to establish connection to the server | `string` | n/a | yes |
 
 ## Outputs
 
-No outputs.
+| Name | Description |
+|------|-------------|
+| <a name="output_cloudflare_tunnel_cname"></a> [cloudflare\_tunnel\_cname](#output\_cloudflare\_tunnel\_cname) | Cloudflare Tunnel CNAME target (if tunnel is enabled) |
+| <a name="output_cloudflare_tunnel_id"></a> [cloudflare\_tunnel\_id](#output\_cloudflare\_tunnel\_id) | Cloudflare Tunnel ID (if tunnel is enabled) |
+| <a name="output_fqdn"></a> [fqdn](#output\_fqdn) | n/a |
+| <a name="output_origin_certificate_expires_on"></a> [origin\_certificate\_expires\_on](#output\_origin\_certificate\_expires\_on) | Expiry date of the Cloudflare Origin CA certificate |
+| <a name="output_origin_certificate_id"></a> [origin\_certificate\_id](#output\_origin\_certificate\_id) | ID of the Cloudflare Origin CA certificate |
 <!-- END_TF_DOCS -->
 
 ## Resources
