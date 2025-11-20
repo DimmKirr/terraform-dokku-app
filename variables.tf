@@ -51,9 +51,15 @@ variable "container_port" {
 }
 
 variable "data_dir" {
-  description = "Storage directory on the host"
+  description = "Storage directory on the host (used for default storage mount when storage variable is not set)"
   type        = string
   default     = "/data"
+}
+
+variable "storage" {
+  description = "Storage mounts configuration. If set, overrides default storage. Map key is host path (absolute) or volume name, value has mount_path (container path)"
+  type        = map(any)
+  default     = null
 }
 
 variable "docker_options" {
@@ -63,7 +69,7 @@ variable "docker_options" {
 }
 
 variable "extra_storage" {
-  description = "Extra storage mounts"
+  description = "Extra storage mounts to add to the default or custom storage configuration"
   type        = map(any)
   default     = {}
 }
