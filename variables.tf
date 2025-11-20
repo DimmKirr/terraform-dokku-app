@@ -59,7 +59,7 @@ variable "storage_enabled" {
 variable "data_dir" {
   description = "Storage directory on the host (used for default storage mount when storage variable is not set)"
   type        = string
-  default     = "/data"
+  default     = "/var/lib/dokku/data/storage"
 }
 
 variable "storage" {

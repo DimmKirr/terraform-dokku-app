@@ -5,7 +5,7 @@ locals {
   # Storage logic: custom storage → use it, storage_enabled → use default, else → null
   storage = var.storage != null ? var.storage : (
     var.storage_enabled ? {
-      "${var.data_dir}/${var.name}" = {
+      (var.name) = {
         mount_path = "/data"
       }
     } : null
