@@ -9,7 +9,7 @@ resource "dokku_app" "this" {
   }
 
   checks = {
-    status =  var.enable_checks ? "enabled" : "disabled"
+    status = var.health_checks_enabled ? "enabled" : "disabled"
   }
 
   config = merge({ APP_NAME = var.name }, var.environment)
@@ -60,7 +60,7 @@ resource "null_resource" "config_set" {
 
 # Upload Cloudflare Origin CA certificate to Dokku
 resource "null_resource" "dokku_cert" {
-  count = var.manage_origin_certificate ? 1 : 0
+  count = var.cloudflare_origin_certificate_enabled ? 1 : 0
 
   triggers = {
     cert_id = cloudflare_origin_ca_certificate.app[0].id
