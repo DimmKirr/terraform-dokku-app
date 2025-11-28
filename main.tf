@@ -12,7 +12,7 @@ resource "dokku_app" "this" {
     status = var.health_checks_enabled ? "enabled" : "disabled"
   }
 
-  config = merge({ APP_NAME = var.name }, var.environment)
+  config  = merge({ APP_NAME = var.name }, var.environment)
   storage = local.storage
 
   domains = local.domains
@@ -27,7 +27,7 @@ resource "null_resource" "set_build_dir" {
   provisioner "remote-exec" {
     connection {
       host        = var.host
-      user        = "root"
+      user        = var.ssh_user # Regular dokku command
       private_key = var.ssh_private_key
       timeout     = "2m"
     }
@@ -43,7 +43,7 @@ resource "null_resource" "config_set" {
   provisioner "remote-exec" {
     connection {
       host        = var.host
-      user        = "root"
+      user        = var.ssh_user # Regular dokku command
       private_key = var.ssh_private_key
     }
 
@@ -67,9 +67,9 @@ resource "null_resource" "dokku_cert" {
 
   provisioner "remote-exec" {
     connection {
-      host        = var.host
+      host = var.host
       # host        = var.node_ip_address
-      user        = "root"
+      user        = var.ssh_user # Regular dokku command + temp file operations
       private_key = var.ssh_private_key
     }
 

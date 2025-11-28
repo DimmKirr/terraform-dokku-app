@@ -41,7 +41,19 @@ variable "host" {
 
 variable "ssh_private_key" {
   type        = string
-  description = "SSH private key contents for dokku user to establish connection to the server"
+  description = "SSH private key contents for establishing SSH connections to the server"
+}
+
+variable "ssh_user" {
+  type        = string
+  description = "SSH user for regular Dokku operations (dokku commands)"
+  default     = "dokku"
+}
+
+variable "ssh_root_user" {
+  type        = string
+  description = "SSH user for privileged operations (plugin installation, file ownership changes)"
+  default     = "root"
 }
 
 variable "container_port" {
@@ -162,12 +174,15 @@ variable "manage_cloudflare" {
 # ==============================================================================
 
 variable "databases" {
-  description = "Map of database services to create and link. Key is a unique identifier, value contains database configuration."
+  description = "Map of database services to create and link. Key is the database identifier (database name will be auto-generated as {{app_name}}-{{key}})."
   type = map(object({
     type    = string                    # "mongo", "postgres", "mysql", "redis", "mariadb"
-    name    = string                    # Service name (e.g., "myapp-db")
     version = optional(string)          # Database version (e.g., "7.0" for mongo)
     config  = optional(map(string), {}) # Additional creation options (memory, etc.)
+    storage = optional(object({
+      host_path  = optional(string) # Host path (defaults to /var/lib/dokku/data/storage/{{APP_NAME}}-{{KEY}})
+      mount_path = string           # Container mount path (e.g., "/data/db" for mongo)
+    }))
   }))
   default = {}
 
@@ -179,6 +194,14 @@ variable "databases" {
       )
     ])
     error_message = "Database type must be one of: mongo, postgres, mysql, redis, mariadb"
+  }
+
+  validation {
+    condition = alltrue([
+      for k, v in var.databases :
+      v.storage != null ? (v.storage.host_path == null || startswith(v.storage.host_path, "/")) : true
+    ])
+    error_message = "If storage.host_path is provided, it must be an absolute path starting with '/'"
   }
 }
 

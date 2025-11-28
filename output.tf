@@ -27,7 +27,7 @@ output "database_services" {
   value = {
     for k, v in var.databases : k => {
       type = v.type
-      name = v.name
+      name = local.database_names[k]
       connection_env_vars = {
         mongo = {
           primary = "MONGO_URL"

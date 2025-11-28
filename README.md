@@ -102,11 +102,10 @@ module "rocketchat" {
   host            = "dokku.example.com"
   ssh_private_key = file("~/.ssh/id_rsa")
 
-  # Single database
+  # Single database (name auto-generated as: rocketchat-mongo)
   databases = {
     "mongo" = {
       type    = "mongo"
-      name    = "rocketchat-db"
       version = "7.0"
       config  = {
         "memory"   = "1024m"
@@ -132,11 +131,10 @@ module "rails_app" {
   host            = "dokku.example.com"
   ssh_private_key = file("~/.ssh/id_rsa")
 
-  # Multiple databases
+  # Multiple databases (names auto-generated as: myapp-postgres, myapp-redis)
   databases = {
     "postgres" = {
       type    = "postgres"
-      name    = "myapp-db"
       version = "15"
       config  = {
         "postgres-memory" = "1024m"
@@ -144,7 +142,6 @@ module "rails_app" {
     }
     "redis" = {
       type    = "redis"
-      name    = "myapp-redis"
       version = "7.0"
       config  = {
         "redis-maxmemory"        = "512mb"
@@ -168,15 +165,78 @@ module "rails_app" {
    - PostgreSQL/MySQL/MariaDB: `DATABASE_URL`
    - Redis: `REDIS_URL`
 
+#### Database Storage Configuration
+
+Each database can optionally use directory-based storage (bind mounts) instead of Docker volumes. This is useful for NFS-backed storage, easier backups, and consistency with app storage.
+
+**Auto-Generated Storage Path (Recommended):**
+```hcl
+name = "rocketchat"
+
+databases = {
+  "mongo" = {
+    type    = "mongo"
+    version = "7.0"
+    storage = {
+      # host_path auto-generated as: /var/lib/dokku/data/storage/rocketchat-mongo
+      mount_path = "/data/db"  # MongoDB data directory
+    }
+  }
+}
+# Database name: rocketchat-mongo
+# Storage path: /var/lib/dokku/data/storage/rocketchat-mongo
+```
+
+**Custom Storage Path:**
+```hcl
+name = "rocketchat"
+
+databases = {
+  "mongo" = {
+    type    = "mongo"
+    version = "7.0"
+    storage = {
+      host_path  = "/mnt/nfs/databases/rocketchat-mongo"  # Custom path
+      mount_path = "/data/db"
+    }
+  }
+}
+# Database name: rocketchat-mongo (auto-generated from app name + key)
+```
+
+**No Storage Config (Default - Docker Volume):**
+```hcl
+databases = {
+  "mongo" = {
+    type    = "mongo"
+    version = "7.0"
+    # No storage config = uses Docker volume (backward compatible)
+  }
+}
+# Database name: {{app_name}}-mongo
+# Uses Docker volume: dokku.mongo.{{app_name}}-mongo
+```
+
+**Container Data Directories by Database Type:**
+
+| Database   | Container Data Directory        |
+|------------|--------------------------------|
+| MongoDB    | `/data/db`                     |
+| PostgreSQL | `/var/lib/postgresql/data`     |
+| MySQL      | `/var/lib/mysql`               |
+| MariaDB    | `/var/lib/mysql`               |
+| Redis      | `/data`                        |
+
 #### Database Configuration Options
 
 Each database can have a `config` field that accepts options converted to command-line flags:
 
 ```hcl
+name = "rocketchat"
+
 databases = {
   "mongo" = {
     type    = "mongo"
-    name    = "rocketchat-db"
     version = "7.0"
     config  = {
       "memory"   = "1024m"
@@ -184,7 +244,8 @@ databases = {
     }
   }
 }
-# Becomes: dokku mongo:create rocketchat-db --image-version 7.0 --memory 1024m --shm-size 256m
+# Database name: rocketchat-mongo (auto-generated from app name + key)
+# Becomes: dokku mongo:create rocketchat-mongo --image-version 7.0 --memory '1024m' --shm-size '256m'
 ```
 
 **Common Options by Database Type:**

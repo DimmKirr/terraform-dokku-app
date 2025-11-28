@@ -10,4 +10,21 @@ locals {
       }
     } : null
   )
+
+  # Auto-generate database names from app name + database key
+  database_names = {
+    for k, v in var.databases : k => "${var.name}-${k}"
+  }
+
+  # Generate storage paths for databases with storage configured
+  database_storage_paths = {
+    for k, v in var.databases :
+    k => v.storage != null ? {
+      host_path = coalesce(
+        v.storage.host_path,
+        "/var/lib/dokku/data/storage/${var.name}-${k}"
+      )
+      mount_path = v.storage.mount_path
+    } : null
+  }
 }
