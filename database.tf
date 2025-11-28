@@ -14,7 +14,7 @@ resource "null_resource" "database_plugin" {
 
   connection {
     host        = var.host
-    user        = var.ssh_root_user # Plugin installation requires root
+    user        = var.ssh_root_user # Requires root: plugin installation is a system-level operation
     private_key = var.ssh_private_key
     timeout     = "2m"
   }
@@ -40,7 +40,7 @@ resource "null_resource" "database_service" {
 
   connection {
     host        = var.host
-    user        = var.ssh_user # Regular dokku command
+    user        = var.ssh_user # Uses ssh_user: only runs dokku commands (no elevated privileges needed)
     private_key = var.ssh_private_key
     timeout     = "5m"
   }
@@ -89,7 +89,7 @@ resource "null_resource" "database_storage_mount" {
 
   connection {
     host        = var.host
-    user        = var.ssh_root_user # Needs root for chown and mkdir in /var/lib/dokku
+    user        = var.ssh_root_user # Requires root: needs shell commands (mkdir, chown) and access to /var/lib/dokku
     private_key = var.ssh_private_key
     timeout     = "2m"
   }
@@ -125,7 +125,7 @@ resource "null_resource" "database_link" {
 
   connection {
     host        = var.host
-    user        = var.ssh_user # Regular dokku command
+    user        = var.ssh_user # Uses ssh_user: only runs dokku commands (no elevated privileges needed)
     private_key = var.ssh_private_key
     timeout     = "2m"
   }

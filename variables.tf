@@ -46,13 +46,13 @@ variable "ssh_private_key" {
 
 variable "ssh_user" {
   type        = string
-  description = "SSH user for regular Dokku operations (dokku commands)"
+  description = "SSH user for regular Dokku operations (dokku commands). IMPORTANT: Must have an unrestricted shell (not the default dokku restricted shell) because Terraform's remote-exec uploads temporary scripts. Use 'root' if you haven't configured a custom user with unrestricted shell access."
   default     = "dokku"
 }
 
 variable "ssh_root_user" {
   type        = string
-  description = "SSH user for privileged operations (plugin installation, file ownership changes)"
+  description = "SSH user for privileged operations that require root access or shell commands (plugin installation, mkdir, chown, file operations in /var/lib/dokku)"
   default     = "root"
 }
 

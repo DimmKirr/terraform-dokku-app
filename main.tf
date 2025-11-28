@@ -12,49 +12,17 @@ resource "dokku_app" "this" {
     status = var.health_checks_enabled ? "enabled" : "disabled"
   }
 
+  # https://dokku.com/docs/deployment/builders/builder-management/
+  builder = {
+    build_dir = "apps/${var.name}" # For monorepo deployments
+  }
+
   config  = merge({ APP_NAME = var.name }, var.environment)
   storage = local.storage
 
   domains = local.domains
 
   docker_options = var.docker_options
-}
-
-resource "null_resource" "set_build_dir" {
-  triggers = {
-    always_run = "${timestamp()}"
-  }
-  provisioner "remote-exec" {
-    connection {
-      host        = var.host
-      user        = var.ssh_user # Regular dokku command
-      private_key = var.ssh_private_key
-      timeout     = "2m"
-    }
-
-    inline = [
-      "dokku builder:set ${dokku_app.this.app_name} build-dir apps/${dokku_app.this.app_name}"
-    ]
-  }
-}
-
-resource "null_resource" "config_set" {
-  for_each = var.environment
-  provisioner "remote-exec" {
-    connection {
-      host        = var.host
-      user        = var.ssh_user # Regular dokku command
-      private_key = var.ssh_private_key
-    }
-
-    inline = [
-      "dokku config:set --no-restart ${dokku_app.this.app_name} ${each.key}='${each.value}'"
-    ]
-  }
-
-  triggers = {
-    always_run = timestamp()
-  }
 }
 
 # Upload Cloudflare Origin CA certificate to Dokku
@@ -67,9 +35,8 @@ resource "null_resource" "dokku_cert" {
 
   provisioner "remote-exec" {
     connection {
-      host = var.host
-      # host        = var.node_ip_address
-      user        = var.ssh_user # Regular dokku command + temp file operations
+      host        = var.host
+      user        = var.ssh_root_user # Needs root for file operations (mkdir, cat, tar, rm)
       private_key = var.ssh_private_key
     }
 
