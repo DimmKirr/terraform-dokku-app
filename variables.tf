@@ -156,3 +156,40 @@ variable "manage_cloudflare" {
   type        = bool
   default     = true
 }
+
+# ==============================================================================
+# Database Configuration
+# ==============================================================================
+
+variable "databases" {
+  description = "Map of database services to create and link. Key is a unique identifier, value contains database configuration."
+  type = map(object({
+    type    = string                    # "mongo", "postgres", "mysql", "redis", "mariadb"
+    name    = string                    # Service name (e.g., "myapp-db")
+    version = optional(string)          # Database version (e.g., "7.0" for mongo)
+    config  = optional(map(string), {}) # Additional creation options (memory, etc.)
+  }))
+  default = {}
+
+  validation {
+    condition = alltrue([
+      for k, v in var.databases : contains(
+        ["mongo", "postgres", "mysql", "redis", "mariadb"],
+        v.type
+      )
+    ])
+    error_message = "Database type must be one of: mongo, postgres, mysql, redis, mariadb"
+  }
+}
+
+variable "database_plugin_urls" {
+  description = "Custom URLs for Dokku database plugins (override defaults)"
+  type        = map(string)
+  default = {
+    mongo    = "https://github.com/dokku/dokku-mongo.git"
+    postgres = "https://github.com/dokku/dokku-postgres.git"
+    mysql    = "https://github.com/dokku/dokku-mysql.git"
+    redis    = "https://github.com/dokku/dokku-redis.git"
+    mariadb  = "https://github.com/dokku/dokku-mariadb.git"
+  }
+}

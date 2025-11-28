@@ -79,6 +79,150 @@ module "dokku_app" {
 
 **Note:** The Cloudflare Tunnel must be created and configured separately. This module only handles the DNS configuration.
 
+### Database Support
+
+The module supports automatic provisioning and linking of database services using Dokku plugins.
+
+#### Supported Database Types
+
+- **mongo** - MongoDB (dokku-mongo plugin)
+- **postgres** - PostgreSQL (dokku-postgres plugin)
+- **mysql** - MySQL (dokku-mysql plugin)
+- **redis** - Redis (dokku-redis plugin)
+- **mariadb** - MariaDB (dokku-mariadb plugin)
+
+#### Single Database Example (MongoDB for Rocket.Chat)
+
+```hcl
+module "rocketchat" {
+  source = "github.com/DimmKirr/terraform-dokku-app"
+
+  name            = "rocketchat"
+  root_domain     = "example.com"
+  host            = "dokku.example.com"
+  ssh_private_key = file("~/.ssh/id_rsa")
+
+  # Single database
+  databases = {
+    "mongo" = {
+      type    = "mongo"
+      name    = "rocketchat-db"
+      version = "7.0"
+      config  = {
+        "memory"   = "1024m"
+        "shm-size" = "256m"
+      }
+    }
+  }
+
+  environment = {
+    ROOT_URL = "https://chat.example.com"
+  }
+}
+```
+
+#### Multiple Databases Example (PostgreSQL + Redis)
+
+```hcl
+module "rails_app" {
+  source = "github.com/DimmKirr/terraform-dokku-app"
+
+  name            = "myapp"
+  root_domain     = "example.com"
+  host            = "dokku.example.com"
+  ssh_private_key = file("~/.ssh/id_rsa")
+
+  # Multiple databases
+  databases = {
+    "postgres" = {
+      type    = "postgres"
+      name    = "myapp-db"
+      version = "15"
+      config  = {
+        "postgres-memory" = "1024m"
+      }
+    }
+    "redis" = {
+      type    = "redis"
+      name    = "myapp-redis"
+      version = "7.0"
+      config  = {
+        "redis-maxmemory"        = "512mb"
+        "redis-maxmemory-policy" = "allkeys-lru"
+      }
+    }
+  }
+
+  environment = {
+    RAILS_ENV = "production"
+  }
+}
+```
+
+#### How It Works
+
+1. **Plugin Installation**: Installs the Dokku database plugin if not present
+2. **Service Creation**: Creates the database service (idempotent - safe to run multiple times)
+3. **Automatic Linking**: Links database to app, which sets environment variables:
+   - MongoDB: `MONGO_URL`, `MONGO_OPLOG_URL`
+   - PostgreSQL/MySQL/MariaDB: `DATABASE_URL`
+   - Redis: `REDIS_URL`
+
+#### Database Configuration Options
+
+Each database can have a `config` field that accepts options converted to command-line flags:
+
+```hcl
+databases = {
+  "mongo" = {
+    type    = "mongo"
+    name    = "rocketchat-db"
+    version = "7.0"
+    config  = {
+      "memory"   = "1024m"
+      "shm-size" = "256m"
+    }
+  }
+}
+# Becomes: dokku mongo:create rocketchat-db --image-version 7.0 --memory 1024m --shm-size 256m
+```
+
+**Common Options by Database Type:**
+
+| Database | Option | Description | Example |
+|----------|--------|-------------|---------|
+| MongoDB | `memory` | Container memory limit | `"1024m"` |
+| MongoDB | `shm-size` | Shared memory size | `"256m"` |
+| PostgreSQL | `postgres-memory` | Container memory limit | `"512m"` |
+| PostgreSQL | `postgres-shm-size` | Shared memory size | `"128m"` |
+| MySQL | `memory` | Container memory limit | `"512m"` |
+| Redis | `redis-maxmemory` | Max memory limit | `"512mb"` |
+| Redis | `redis-maxmemory-policy` | Eviction policy | `"allkeys-lru"` |
+| MariaDB | `memory` | Container memory limit | `"512m"` |
+
+#### MongoDB Replica Sets (Rocket.Chat, etc.)
+
+Some applications require MongoDB replica sets. The module creates the MongoDB service, but **replica set initialization is handled by the application** in its entrypoint script.
+
+**Example pattern (in your app's entrypoint.sh):**
+```bash
+# Check if replica set is initialized
+if mongosh "$MONGO_URL" --eval "rs.status()" | grep -q "no replset config"; then
+  # Initialize replica set
+  mongosh "$MONGO_URL" --eval "rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]})"
+fi
+
+# Add replicaSet parameter to URL
+export MONGO_URL="${MONGO_URL}?replicaSet=rs0"
+```
+
+#### Database Lifecycle
+
+- **Creation**: Database created on `tofu apply`
+- **Updates**: Database version updates require manual intervention (Dokku limitation)
+- **Deletion**: Database service NOT deleted on `tofu destroy` to prevent data loss
+  - To delete: `ssh root@host dokku <type>:destroy <name>`
+
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
 
