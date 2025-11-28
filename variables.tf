@@ -176,7 +176,7 @@ variable "manage_cloudflare" {
 variable "databases" {
   description = "Map of database services to create and link. Key is the database identifier (database name will be auto-generated as {{app_name}}-{{key}})."
   type = map(object({
-    type    = string                    # "mongo", "postgres", "mysql", "redis", "mariadb"
+    type    = string                    # "mongo", "postgres", "mysql", "redis", "mariadb", "rabbitmq", "elasticsearch", "clickhouse", "couchdb", "nats", "rethinkdb"
     version = optional(string)          # Database version (e.g., "7.0" for mongo)
     config  = optional(map(string), {}) # Additional creation options (memory, etc.)
     storage = optional(object({
@@ -189,11 +189,11 @@ variable "databases" {
   validation {
     condition = alltrue([
       for k, v in var.databases : contains(
-        ["mongo", "postgres", "mysql", "redis", "mariadb"],
+        ["mongo", "postgres", "mysql", "redis", "mariadb", "rabbitmq", "elasticsearch", "clickhouse", "couchdb", "nats", "rethinkdb"],
         v.type
       )
     ])
-    error_message = "Database type must be one of: mongo, postgres, mysql, redis, mariadb"
+    error_message = "Database type must be one of: mongo, postgres, mysql, redis, mariadb, rabbitmq, elasticsearch, clickhouse, couchdb, nats, rethinkdb"
   }
 
   validation {
@@ -209,10 +209,16 @@ variable "database_plugin_urls" {
   description = "Custom URLs for Dokku database plugins (override defaults)"
   type        = map(string)
   default = {
-    mongo    = "https://github.com/dokku/dokku-mongo.git"
-    postgres = "https://github.com/dokku/dokku-postgres.git"
-    mysql    = "https://github.com/dokku/dokku-mysql.git"
-    redis    = "https://github.com/dokku/dokku-redis.git"
-    mariadb  = "https://github.com/dokku/dokku-mariadb.git"
+    mongo         = "https://github.com/dokku/dokku-mongo.git"
+    postgres      = "https://github.com/dokku/dokku-postgres.git"
+    mysql         = "https://github.com/dokku/dokku-mysql.git"
+    redis         = "https://github.com/dokku/dokku-redis.git"
+    mariadb       = "https://github.com/dokku/dokku-mariadb.git"
+    rabbitmq      = "https://github.com/dokku/dokku-rabbitmq.git"
+    elasticsearch = "https://github.com/dokku/dokku-elasticsearch.git"
+    clickhouse    = "https://github.com/dokku/dokku-clickhouse.git"
+    couchdb       = "https://github.com/dokku/dokku-couchdb.git"
+    nats          = "https://github.com/dokku/dokku-nats.git"
+    rethinkdb     = "https://github.com/dokku/dokku-rethinkdb.git"
   }
 }

@@ -15,6 +15,27 @@ This module simplifies the deployment and configuration of applications on a Dok
 - Supports both traditional IP-based (A records) and Cloudflare Tunnel (CNAME records) routing
 - Creates HTTP to HTTPS redirect rules
 - Supports multiple domains for a single application
+- Automatic database provisioning and linking (MongoDB, PostgreSQL, MySQL, Redis, MariaDB, RabbitMQ, Elasticsearch, ClickHouse, CouchDB, NATS, RethinkDB)
+
+## Prerequisites
+
+### Provider Configuration
+
+This module requires the Dokku provider to be configured with root SSH access for privileged operations (database plugin installation). Configure the provider at the root module level:
+
+```hcl
+provider "dokku" {
+  ssh_host      = "dokku.example.com"
+  ssh_user      = "dokku"            # Regular dokku user for app management
+  ssh_cert      = file("~/.ssh/id_rsa")
+
+  # Required for database plugin installation
+  root_ssh_user = "root"             # User with root/sudo access
+  root_ssh_cert = file("~/.ssh/id_rsa")  # Optional: defaults to ssh_cert
+}
+```
+
+**Important:** The `root_ssh_user` parameter is required if you plan to use the database features. Without it, plugin installation will fail.
 
 ## Usage
 
