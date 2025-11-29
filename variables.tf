@@ -33,28 +33,9 @@ variable "environment" {
 # ==============================================================================
 # Dokku Server Configuration
 # ==============================================================================
-
-variable "host" {
-  description = "Hostname of the Dokku server for SSH connections"
-  type        = string
-}
-
-variable "ssh_private_key" {
-  type        = string
-  description = "SSH private key contents for establishing SSH connections to the server"
-}
-
-variable "ssh_user" {
-  type        = string
-  description = "SSH user for regular Dokku operations (dokku commands). IMPORTANT: Must have an unrestricted shell (not the default dokku restricted shell) because Terraform's remote-exec uploads temporary scripts. Use 'root' if you haven't configured a custom user with unrestricted shell access."
-  default     = "dokku"
-}
-
-variable "ssh_root_user" {
-  type        = string
-  description = "SSH user for privileged operations that require root access or shell commands (plugin installation, mkdir, chown, file operations in /var/lib/dokku)"
-  default     = "root"
-}
+# Note: SSH configuration (ssh_host, ssh_user, ssh_private_key, root_ssh_user, root_ssh_private_key)
+# is now configured at the provider level, not passed through the module.
+# See README Prerequisites section for provider configuration.
 
 variable "container_port" {
   description = "Container port that the application listens on"
@@ -180,8 +161,8 @@ variable "databases" {
     version = optional(string)          # Database version (e.g., "7.0" for mongo)
     config  = optional(map(string), {}) # Additional creation options (memory, etc.)
     storage = optional(object({
-      host_path  = optional(string) # Host path (defaults to /var/lib/dokku/data/storage/{{APP_NAME}}-{{KEY}})
-      mount_path = string           # Container mount path (e.g., "/data/db" for mongo)
+      host_path  = optional(string) # Host path: omit for default ({{APP_NAME}}-{{KEY}}-data under /var/lib/dokku/data/storage/), relative path (stored under /var/lib/dokku/data/storage/), or absolute path
+      mount_path = string           # Container mount path (e.g., "/data/db" for mongo, "/var/lib/postgresql/data" for postgres)
     }))
   }))
   default = {}
@@ -194,14 +175,6 @@ variable "databases" {
       )
     ])
     error_message = "Database type must be one of: mongo, postgres, mysql, redis, mariadb, rabbitmq, elasticsearch, clickhouse, couchdb, nats, rethinkdb"
-  }
-
-  validation {
-    condition = alltrue([
-      for k, v in var.databases :
-      v.storage != null ? (v.storage.host_path == null || startswith(v.storage.host_path, "/")) : true
-    ])
-    error_message = "If storage.host_path is provided, it must be an absolute path starting with '/'"
   }
 }
 
