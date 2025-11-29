@@ -164,8 +164,9 @@ variable "databases" {
   description = "Map of database services to create and link. Key is the database identifier (database name will be auto-generated as {{app_name}}-{{key}})."
   type = map(object({
     type    = string                    # "mongo", "postgres", "mysql", "redis", "mariadb", "rabbitmq", "elasticsearch", "clickhouse", "couchdb", "nats", "rethinkdb"
-    version = optional(string)          # Database version (e.g., "7.0" for mongo)
-    config  = optional(map(string), {}) # Additional creation options (memory, etc.)
+    version = optional(string)          # Database version (e.g., "7.0" for mongo) - used to construct image if 'image' is not provided
+    image   = optional(string)          # Custom Docker image (e.g., "bitnami/mongodb"). If omitted, constructed as "{{type}}:{{version}}"
+    config  = optional(map(string), {}) # Additional creation options (memory, config-options, custom-env, etc.)
     storage = optional(object({
       host_path  = optional(string) # Host path: omit for default ({{APP_NAME}}-{{KEY}}-data under /var/lib/dokku/data/storage/), relative path (stored under /var/lib/dokku/data/storage/), or absolute path
       mount_path = string           # Container mount path (e.g., "/data/db" for mongo, "/var/lib/postgresql/data" for postgres)

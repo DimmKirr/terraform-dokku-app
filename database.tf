@@ -22,8 +22,9 @@ resource "dokku_db" "this" {
 
   plugin       = each.value.type
   service_name = local.database_names[each.key]
-  image        = each.value.version != null ? "${each.value.type}:${each.value.version}" : null
-  config       = each.value.config
+  # Use custom image if provided, otherwise construct from type:version
+  image  = each.value.image != null ? each.value.image : (each.value.version != null ? "${each.value.type}:${each.value.version}" : null)
+  config = each.value.config
 
   # Configure storage if specified
   # The storage map key is arbitrary (using "data" as convention)

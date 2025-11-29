@@ -282,61 +282,88 @@ databases = {
 
 #### Database Configuration Options
 
-Each database can have a `config` field that accepts options converted to command-line flags:
+Each database can have a `config` field that maps configuration keys to Dokku plugin flags:
 
 ```hcl
-name = "rocketchat"
-
 databases = {
-  "mongo" = {
-    type    = "mongo"
-    version = "7.0"
+  "postgres" = {
+    type    = "postgres"
+    version = "16"
     config  = {
-      "memory"   = "1024m"
-      "shm-size" = "256m"
+      "config-options" = "-c max_connections=200 -c shared_buffers=256MB"
+      "memory"         = "2g"
+      "shm-size"       = "256m"
     }
   }
 }
-# Database name: rocketchat-mongo (auto-generated from app name + key)
-# Becomes: dokku mongo:create rocketchat-mongo --image-version 7.0 --memory '1024m' --shm-size '256m'
 ```
 
-**Common Options by Database Type:**
+**Configuration Options:**
 
-| Database | Option | Description | Example |
-|----------|--------|-------------|---------|
-| All | `config-options` | Raw command-line options passed to database | `"--replSet rs0 --auth"` |
-| All | `memory` | Container memory limit | `"1024m"` |
-| All | `shm-size` | Shared memory size | `"256m"` |
-| PostgreSQL | `postgres-memory` | PostgreSQL-specific memory limit | `"512m"` |
-| PostgreSQL | `postgres-shm-size` | PostgreSQL-specific shared memory | `"128m"` |
-| Redis | `redis-maxmemory` | Max memory limit | `"512mb"` |
-| Redis | `redis-maxmemory-policy` | Eviction policy | `"allkeys-lru"` |
+| Option | Description | Example |
+|--------|-------------|---------|
+| `config-options` | Custom database startup arguments (passed to database process) | MongoDB: `"--replSet rs0 --auth"`<br>PostgreSQL: `"-c max_connections=200"`<br>Redis: `"--maxmemory 256mb"` |
+| `memory` | Container memory limit | `"512m"`, `"1g"`, `"2g"` |
+| `shm-size` | Shared memory size | `"64m"`, `"128m"`, `"256m"` |
+| `custom-env` | Custom environment variables | Plugin-specific |
 
-**Note:** The `config-options` parameter accepts raw command-line flags specific to each database type. These are passed directly to the database container.
+**Examples by Database Type:**
+
+```hcl
+# MongoDB with replica set
+config = {
+  "config-options" = "--replSet rs0 --storageEngine wiredTiger --auth"
+  "memory"         = "1g"
+  "shm-size"       = "128m"
+}
+
+# PostgreSQL with tuning
+config = {
+  "config-options" = "-c max_connections=200 -c shared_buffers=256MB"
+  "memory"         = "2g"
+  "shm-size"       = "256m"
+}
+
+# Redis with eviction policy
+config = {
+  "config-options" = "--maxmemory 512mb --maxmemory-policy allkeys-lru"
+  "memory"         = "512m"
+}
+```
+
+**Important:** Changing `config` requires service replacement. Data is preserved via storage volumes.
 
 #### MongoDB Replica Sets (Rocket.Chat, etc.)
 
-Some applications like Rocket.Chat require MongoDB replica sets. You can configure MongoDB to run in replica set mode using the `config-options` parameter:
+Some applications like Rocket.Chat require MongoDB replica sets. Configure MongoDB in replica set mode using the `config-options` parameter:
 
 **Terraform Configuration:**
 ```hcl
-databases = {
-  "mongo" = {
-    type    = "mongo"
-    version = "8"
-    config  = {
-      "config-options" = "--replSet rs0 --storageEngine wiredTiger --auth"
-      "memory"         = "1g"
-    }
-    storage = {
-      mount_path = "/data/db"
+module "rocketchat" {
+  source = "github.com/DimmKirr/terraform-dokku-app"
+
+  name            = "rocketchat"
+  root_domain     = "example.com"
+  node_ip_address = "203.0.113.1"
+
+  databases = {
+    "mongo" = {
+      type    = "mongo"
+      version = "8"
+      config  = {
+        "config-options" = "--replSet rs0 --storageEngine wiredTiger --auth"
+        "memory"         = "1g"
+        "shm-size"       = "128m"
+      }
+      storage = {
+        mount_path = "/data/db"
+      }
     }
   }
 }
 ```
 
-**Replica Set Initialization (in your app's entrypoint.sh):**
+**Application Entrypoint (initialize replica set):**
 ```bash
 # Check if replica set is initialized
 if mongosh "$MONGO_URL" --eval "rs.status()" | grep -q "no replset config"; then
@@ -348,7 +375,7 @@ fi
 export MONGO_URL="${MONGO_URL}?replicaSet=rs0"
 ```
 
-The `--replSet rs0` flag configures MongoDB to run in replica set mode. Your application's entrypoint script should then initialize the replica set on first run.
+The `--replSet rs0` flag configures MongoDB to run in replica set mode. Your application's entrypoint script initializes the replica set on first run.
 
 #### Database Lifecycle
 
