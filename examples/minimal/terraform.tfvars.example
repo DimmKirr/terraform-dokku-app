@@ -1,0 +1,7 @@
+# Copy this file to terraform.tfvars and fill in your values
+
+dokku_host         = "dokku.example.com"
+ssh_private_key    = "~/.ssh/id_rsa"
+root_domain        = "example.com"
+node_ip_address    = "203.0.113.1"
+cloudflare_api_token = "your-cloudflare-api-token"

@@ -96,17 +96,34 @@ module "dokku_app" {
 
 **Note:** The Cloudflare Tunnel must be created and configured separately. This module only handles the DNS configuration.
 
+## Examples
+
+The `examples/` directory contains complete, working examples:
+
+- **[examples/minimal/](examples/minimal/)** - Minimal configuration to deploy a basic app
+- **[examples/with-database/](examples/with-database/)** - App with PostgreSQL and Redis databases
+
+Each example includes its own README with detailed instructions.
+
 ### Database Support
 
 The module supports automatic provisioning and linking of database services using Dokku plugins.
 
 #### Supported Database Types
 
+All database types are automatically detected from your `databases` configuration. Plugins are installed automatically (can be disabled with `manage_dokku_plugins = false`).
+
 - **mongo** - MongoDB (dokku-mongo plugin)
 - **postgres** - PostgreSQL (dokku-postgres plugin)
 - **mysql** - MySQL (dokku-mysql plugin)
 - **redis** - Redis (dokku-redis plugin)
 - **mariadb** - MariaDB (dokku-mariadb plugin)
+- **rabbitmq** - RabbitMQ (dokku-rabbitmq plugin)
+- **elasticsearch** - Elasticsearch (dokku-elasticsearch plugin)
+- **clickhouse** - ClickHouse (dokku-clickhouse plugin)
+- **couchdb** - CouchDB (dokku-couchdb plugin)
+- **nats** - NATS (dokku-nats plugin)
+- **rethinkdb** - RethinkDB (dokku-rethinkdb plugin)
 
 #### Single Database Example (MongoDB for Rocket.Chat)
 
@@ -173,7 +190,8 @@ module "rails_app" {
 
 #### How It Works
 
-1. **Plugin Installation**: Uses native `dokku_plugin` resource to install database plugins (requires `root_ssh_user` in provider config)
+1. **Plugin Installation**: Automatically installs database plugins using native `dokku_plugin` resource (requires `root_ssh_user` in provider config)
+   - Set `manage_dokku_plugins = false` if plugins are already installed on your server
 2. **Service Creation**: Uses unified `dokku_db` resource for all database types (idempotent - safe to run multiple times)
 3. **Storage Mounting**: Storage configuration is handled natively by the provider (no separate resources needed)
 4. **Automatic Linking**: Uses unified `dokku_db_link` resource to link databases to app, which sets environment variables:
@@ -287,20 +305,38 @@ databases = {
 
 | Database | Option | Description | Example |
 |----------|--------|-------------|---------|
-| MongoDB | `memory` | Container memory limit | `"1024m"` |
-| MongoDB | `shm-size` | Shared memory size | `"256m"` |
-| PostgreSQL | `postgres-memory` | Container memory limit | `"512m"` |
-| PostgreSQL | `postgres-shm-size` | Shared memory size | `"128m"` |
-| MySQL | `memory` | Container memory limit | `"512m"` |
+| All | `config-options` | Raw command-line options passed to database | `"--replSet rs0 --auth"` |
+| All | `memory` | Container memory limit | `"1024m"` |
+| All | `shm-size` | Shared memory size | `"256m"` |
+| PostgreSQL | `postgres-memory` | PostgreSQL-specific memory limit | `"512m"` |
+| PostgreSQL | `postgres-shm-size` | PostgreSQL-specific shared memory | `"128m"` |
 | Redis | `redis-maxmemory` | Max memory limit | `"512mb"` |
 | Redis | `redis-maxmemory-policy` | Eviction policy | `"allkeys-lru"` |
-| MariaDB | `memory` | Container memory limit | `"512m"` |
+
+**Note:** The `config-options` parameter accepts raw command-line flags specific to each database type. These are passed directly to the database container.
 
 #### MongoDB Replica Sets (Rocket.Chat, etc.)
 
-Some applications require MongoDB replica sets. The module creates the MongoDB service, but **replica set initialization is handled by the application** in its entrypoint script.
+Some applications like Rocket.Chat require MongoDB replica sets. You can configure MongoDB to run in replica set mode using the `config-options` parameter:
 
-**Example pattern (in your app's entrypoint.sh):**
+**Terraform Configuration:**
+```hcl
+databases = {
+  "mongo" = {
+    type    = "mongo"
+    version = "8"
+    config  = {
+      "config-options" = "--replSet rs0 --storageEngine wiredTiger --auth"
+      "memory"         = "1g"
+    }
+    storage = {
+      mount_path = "/data/db"
+    }
+  }
+}
+```
+
+**Replica Set Initialization (in your app's entrypoint.sh):**
 ```bash
 # Check if replica set is initialized
 if mongosh "$MONGO_URL" --eval "rs.status()" | grep -q "no replset config"; then
@@ -311,6 +347,8 @@ fi
 # Add replicaSet parameter to URL
 export MONGO_URL="${MONGO_URL}?replicaSet=rs0"
 ```
+
+The `--replSet rs0` flag configures MongoDB to run in replica set mode. Your application's entrypoint script should then initialize the replica set on first run.
 
 #### Database Lifecycle
 
@@ -379,6 +417,7 @@ No modules.
 | <a name="input_environment"></a> [environment](#input\_environment) | Map of environment variables to set for the Dokku application | `map(string)` | `{}` | no |
 | <a name="input_health_checks_enabled"></a> [health\_checks\_enabled](#input\_health\_checks\_enabled) | Enable health checks (Defined in app.json) | `bool` | `true` | no |
 | <a name="input_manage_cloudflare"></a> [manage\_cloudflare](#input\_manage\_cloudflare) | Whether to manage Cloudflare resources (DNS records and page rules) | `bool` | `true` | no |
+| <a name="input_manage_dokku_plugins"></a> [manage\_dokku\_plugins](#input\_manage\_dokku\_plugins) | Whether to automatically install Dokku plugins (database plugins, etc.). Set to false if plugins are already installed on the server. | `bool` | `true` | no |
 | <a name="input_manage_subdomain"></a> [manage\_subdomain](#input\_manage\_subdomain) | Whether to enable a subdomain for the application | `bool` | `true` | no |
 | <a name="input_name"></a> [name](#input\_name) | Name of the Dokku application to be deployed | `string` | n/a | yes |
 | <a name="input_node_ip_address"></a> [node\_ip\_address](#input\_node\_ip\_address) | The IP address of the dokku node for DNS record creation (required when cloudflare\_tunnel\_enabled is false) | `string` | `""` | no |

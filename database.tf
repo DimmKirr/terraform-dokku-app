@@ -6,8 +6,9 @@ locals {
 
 # Install database plugin for each unique database type
 # Requires root_ssh_user to be configured in the provider
+# Can be disabled with manage_dokku_plugins = false
 resource "dokku_plugin" "database" {
-  for_each = local.database_types
+  for_each = var.manage_dokku_plugins ? local.database_types : []
 
   name = each.value
   url  = lookup(var.database_plugin_urls, each.value)
@@ -22,6 +23,7 @@ resource "dokku_db" "this" {
   plugin       = each.value.type
   service_name = local.database_names[each.key]
   image        = each.value.version != null ? "${each.value.type}:${each.value.version}" : null
+  config       = each.value.config
 
   # Configure storage if specified
   # The storage map key is arbitrary (using "data" as convention)

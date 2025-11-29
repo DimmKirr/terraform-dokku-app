@@ -154,6 +154,12 @@ variable "manage_cloudflare" {
 # Database Configuration
 # ==============================================================================
 
+variable "manage_dokku_plugins" {
+  description = "Whether to automatically install Dokku plugins (database plugins, etc.). Set to false if plugins are already installed on the server."
+  type        = bool
+  default     = true
+}
+
 variable "databases" {
   description = "Map of database services to create and link. Key is the database identifier (database name will be auto-generated as {{app_name}}-{{key}})."
   type = map(object({
