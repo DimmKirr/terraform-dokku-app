@@ -33,16 +33,9 @@ variable "environment" {
 # ==============================================================================
 # Dokku Server Configuration
 # ==============================================================================
-
-variable "host" {
-  description = "Hostname of the Dokku server for SSH connections"
-  type        = string
-}
-
-variable "ssh_private_key" {
-  type        = string
-  description = "SSH private key contents for dokku user to establish connection to the server"
-}
+# Note: SSH configuration (ssh_host, ssh_user, ssh_private_key, root_ssh_user, root_ssh_private_key)
+# is now configured at the provider level, not passed through the module.
+# See README Prerequisites section for provider configuration.
 
 variable "container_port" {
   description = "Container port that the application listens on"
@@ -50,20 +43,26 @@ variable "container_port" {
   default     = 5000
 }
 
+variable "storage_enabled" {
+  description = "Enable persistent storage for the application"
+  type        = bool
+  default     = false
+}
+
 variable "data_dir" {
-  description = "Storage directory on the host"
+  description = "Storage directory on the host (used for default storage mount when storage variable is not set)"
   type        = string
-  default     = "/data"
+  default     = "/var/lib/dokku/data/storage"
+}
+
+variable "storage" {
+  description = "Storage mounts configuration. If set, overrides default storage. Map key is host path (absolute) or volume name, value has mount_path (container path)"
+  type        = map(any)
+  default     = null
 }
 
 variable "docker_options" {
   description = "Additional docker options ( # https://dokku.com/docs/advanced-usage/docker-options/)"
-  type        = map(any)
-  default     = {}
-}
-
-variable "extra_storage" {
-  description = "Extra storage mounts"
   type        = map(any)
   default     = {}
 }
@@ -149,4 +148,57 @@ variable "manage_cloudflare" {
   description = "Whether to manage Cloudflare resources (DNS records and page rules)"
   type        = bool
   default     = true
+}
+
+# ==============================================================================
+# Database Configuration
+# ==============================================================================
+
+variable "manage_dokku_plugins" {
+  description = "Whether to automatically install Dokku plugins (database plugins, etc.). Set to false if plugins are already installed on the server."
+  type        = bool
+  default     = true
+}
+
+variable "databases" {
+  description = "Map of database services to create and link. Key is the database identifier (database name will be auto-generated as {{app_name}}-{{key}})."
+  type = map(object({
+    type    = string                    # "mongo", "postgres", "mysql", "redis", "mariadb", "rabbitmq", "elasticsearch", "clickhouse", "couchdb", "nats", "rethinkdb"
+    version = optional(string)          # Database version (e.g., "7.0" for mongo) - used to construct image if 'image' is not provided
+    image   = optional(string)          # Custom Docker image (e.g., "bitnami/mongodb"). If omitted, constructed as "{{type}}:{{version}}"
+    config  = optional(map(string), {}) # Additional creation options (memory, config-options, custom-env, etc.)
+    storage = optional(object({
+      host_path  = optional(string) # Host path: omit for default ({{APP_NAME}}-{{KEY}}-data under /var/lib/dokku/data/storage/), relative path (stored under /var/lib/dokku/data/storage/), or absolute path
+      mount_path = string           # Container mount path (e.g., "/data/db" for mongo, "/var/lib/postgresql/data" for postgres)
+    }))
+  }))
+  default = {}
+
+  validation {
+    condition = alltrue([
+      for k, v in var.databases : contains(
+        ["mongo", "postgres", "mysql", "redis", "mariadb", "rabbitmq", "elasticsearch", "clickhouse", "couchdb", "nats", "rethinkdb"],
+        v.type
+      )
+    ])
+    error_message = "Database type must be one of: mongo, postgres, mysql, redis, mariadb, rabbitmq, elasticsearch, clickhouse, couchdb, nats, rethinkdb"
+  }
+}
+
+variable "database_plugin_urls" {
+  description = "Custom URLs for Dokku database plugins (override defaults)"
+  type        = map(string)
+  default = {
+    mongo         = "https://github.com/dokku/dokku-mongo.git"
+    postgres      = "https://github.com/dokku/dokku-postgres.git"
+    mysql         = "https://github.com/dokku/dokku-mysql.git"
+    redis         = "https://github.com/dokku/dokku-redis.git"
+    mariadb       = "https://github.com/dokku/dokku-mariadb.git"
+    rabbitmq      = "https://github.com/dokku/dokku-rabbitmq.git"
+    elasticsearch = "https://github.com/dokku/dokku-elasticsearch.git"
+    clickhouse    = "https://github.com/dokku/dokku-clickhouse.git"
+    couchdb       = "https://github.com/dokku/dokku-couchdb.git"
+    nats          = "https://github.com/dokku/dokku-nats.git"
+    rethinkdb     = "https://github.com/dokku/dokku-rethinkdb.git"
+  }
 }
